@@ -24,6 +24,7 @@ from PyPDF2 import PdfFileReader
 import StringIO
 import pickle
 import gc
+import re
 
 class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
 
@@ -84,7 +85,10 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         
         bodyOffset = responseInfo.getBodyOffset()
         header = response.tostring()[:bodyOffset]
-        if "pdf" in header:
+        # checking if it is a pdf file by regexp, because content-type is noted 
+        # in various ways. It is not exact.
+        regexp = re.compile(r'Content-type: [A-Fa-z/]+pdf')
+        if regexp.search(header) is not None:
             pdffile = StringIO.StringIO()
             pdffile.write ( response.tostring()[bodyOffset:] )
             pdf_toread = PdfFileReader(pdffile)
