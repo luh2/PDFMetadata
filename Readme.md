@@ -7,6 +7,7 @@ This software is released under [GPL v3](https://www.gnu.org/licenses/gpl-3.0.en
 
 ## Limitations
 * The plugin uses the [PyPDF2](https://pypi.python.org/pypi/PyPDF2) library, which 
+
 > retrieves the PDF file's document information dictionary, if it exists. 
 > Note that some PDF files use metadata streams instead of docinfo dictionaries, and these metadata streams will not be accessed by this function.
 
