@@ -76,6 +76,10 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         else:
             return None
 
+    # Just so the scanner doesn't return a "method not implemented error"
+    def doActiveScan(self):
+        return None
+
     def findMetadata(self):
         self._helpers = self._callbacks.getHelpers()
         self.scan_issues = []
