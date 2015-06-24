@@ -19,8 +19,9 @@ from burp import IBurpExtender
 from burp import IScannerCheck
 from burp import IScanIssue
 from burp import IExtensionStateListener
+from burp import IExtensionHelpers
 from javax import swing
-from PyPDF2 import PdfFileReader
+import PyPDF2
 import StringIO
 import pickle
 import gc
@@ -84,29 +85,36 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         self._helpers = self._callbacks.getHelpers()
         self.scan_issues = []
 
-        response = self._requestResponse.getResponse()
-        responseInfo = self._helpers.analyzeResponse(response)
-        
-        bodyOffset = responseInfo.getBodyOffset()
-        header = response.tostring()[:bodyOffset]
-        # checking if it is a pdf file by regexp, because content-type is noted 
-        # in various ways. It is not exact.
-        regexp = re.compile(r'Content-type: [A-Fa-z/]+pdf')
-        if regexp.search(header) is not None:
-            pdffile = StringIO.StringIO()
-            pdffile.write ( response.tostring()[bodyOffset:] )
-            pdf_toread = PdfFileReader(pdffile)
-            pdf_info = pdf_toread.getDocumentInfo()
-            del pdf_toread
-            del pdffile
-            host = self._requestResponse.getHttpService().getHost()
 
-            # If host hasn't been scanned before, add to global_issues
-            if host not in self.global_issues:
-                self.global_issues[host] = {}
-                self.global_issues[host]["Interesting"] = []
+        request = self._requestResponse.getRequest()
+        pdfFilename = request.tostring().split()[1]
 
-            self.readMetadata(host, pdf_info)
+        # Not checking content-type. Content-Type stated in too many ways.
+        # Check filename extension
+        # Not super clean either, but better than nothing.
+        if pdfFilename[-3:] == "pdf":
+            response = self._requestResponse.getResponse()
+            responseInfo = self._helpers.analyzeResponse(response)
+            bodyOffset = responseInfo.getBodyOffset()
+
+            try:
+                pdffile = StringIO.StringIO()
+                pdffile.write ( response.tostring()[bodyOffset:] )
+                pdf_toread = PyPDF2.PdfFileReader(pdffile)
+                pdf_info = pdf_toread.getDocumentInfo()
+                del pdf_toread
+                del pdffile
+                host = self._requestResponse.getHttpService().getHost()
+
+                # If host hasn't been scanned before, add to global_issues
+                if host not in self.global_issues:
+                    self.global_issues[host] = {}
+                    self.global_issues[host]["Interesting"] = []
+
+                self.readMetadata(host, pdf_info)
+            except PyPDF2.utils.PdfReadError:
+                print "Error: Malformed PDF file: "+pdfFilename
+                
 
         return (self.scan_issues)
 
