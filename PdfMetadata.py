@@ -14,18 +14,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 from burp import IBurpExtender
 from burp import IScannerCheck
 from burp import IScanIssue
 from burp import IExtensionStateListener
 from burp import IExtensionHelpers
 from javax import swing
-import PyPDF2
 import StringIO
-import pickle
-import gc
-import re
+from pdfminer.pdfparser import PDFParser
+from pdfminer.pdfdocument import PDFDocument
+from pdfminer.pdftypes import resolve1
+import chardet
+
+
 
 class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
 
@@ -85,7 +86,6 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         self._helpers = self._callbacks.getHelpers()
         self.scan_issues = []
 
-
         request = self._requestResponse.getRequest()
         pdfFilename = request.tostring().split()[1]
 
@@ -93,49 +93,53 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         # Check filename extension
         # Not super clean either, but better than nothing.
         if pdfFilename[-3:] == "pdf":
+            host = self._requestResponse.getHttpService().getHost()
             response = self._requestResponse.getResponse()
             responseInfo = self._helpers.analyzeResponse(response)
             bodyOffset = responseInfo.getBodyOffset()
-
-            try:
-                pdffile = StringIO.StringIO()
-                pdffile.write ( response.tostring()[bodyOffset:] )
-                pdf_toread = PyPDF2.PdfFileReader(pdffile)
-                pdf_info = pdf_toread.getDocumentInfo()
-                del pdf_toread
-                del pdffile
-                host = self._requestResponse.getHttpService().getHost()
-
-                # If host hasn't been scanned before, add to global_issues
-                if host not in self.global_issues:
-                    self.global_issues[host] = {}
-                    self.global_issues[host]["Interesting"] = []
-
-                self.readMetadata(host, pdf_info)
-            except PyPDF2.utils.PdfReadError:
-                print "Error: Malformed PDF file: "+pdfFilename
-                
-
+            pdffile = StringIO.StringIO()
+            pdffile.write ( response.tostring()[bodyOffset:] )
+            parser = PDFParser(pdffile)
+            doc = PDFDocument(parser)
+            # If host hasn't been scanned before, add to global_issues
+            if host not in self.global_issues:
+                self.global_issues[host] = {}
+                self.global_issues[host]["Interesting"] = []
+            self.readMetadata(host, pdfFilename, doc.info[0])
+            del pdffile
         return (self.scan_issues)
 
-    def readMetadata(self, host, metadata):
+    def readMetadata(self, host, pdfFilename, metadata):
         issuename = "Metadata in PDF File(s)"
         issuelevel = "Low"
         issuedetail = "<p>PDF Metadata can contain compromising information about employees, software and more. This may provide information leading to specific and targeted technical and social engineering attacks. The PDF file includes the following potentially interesting metadata:</p><ul>"
         log = "[+] Interesting Headers found: " + host + "\n"
         issueremediation = "Metadata containing sensitive information should be stripped from the file."
         found = 0
+        print host+pdfFilename
         for key in metadata.keys():
-            print key, metadata[key]
-            issuedetail += "<li>Parameter: <b>" + key + "</b>. Value: <b>" + metadata[key] + "</b></li>"
-            log += "    Parameter name:" + key + " Value:" + metadata[key]  + "\n"
-            report = key + ":" + metadata[key]
+            # hope they did not chose a funky encoding
+            try:
+                print key+":"+metadata[key]
+                current_metadata = metadata[key]
+            except UnicodeDecodeError:
+            # trying to cope with a funky encoding             
+                current_metadata = metadata[key].decode(chardet.detect(metadata[key])['encoding'])
+                print key+":",
+                print current_metadata.encode('utf-8')
+            except TypeError:
+            # somehow sometimes metadata[key] is returned as PSLiteral
+                current_metadata = str(metadata[key])
+                print key+":",
+                print current_metadata.encode('utf-8')
+            issuedetail += "<li>Parameter: <b>" + key + "</b>. Value: <b>"+ current_metadata + "</b></li>"
+            log += "    Parameter name:" + key + " Value:" + current_metadata  + "\n"
+            report = key + ":" + current_metadata
             if report not in self.global_issues[host]:
                 self.global_issues[host]["Interesting"].append(report)
 
             found += 1
         issuedetail += "</ul>"
-
         if found > 0:
             # Create a ScanIssue object and append it to our list of issues
             self.scan_issues.append(ScanIssue(self._requestResponse.getHttpService(),
