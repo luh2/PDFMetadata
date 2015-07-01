@@ -1,7 +1,7 @@
 # Changelog
 
 <a name="0.4"></a>
-## 0.4
+## v0.4
 - Bug fixing
 - Add XMP Metadata support
 - Improved Error Handling
