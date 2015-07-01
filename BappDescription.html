@@ -1,2 +1,20 @@
 <p>This extension scans PDF files for metadata. These can contain information on usernames, personal names, software used, etc.</p>
 <p>If this extension is loaded it will be run on passive scans.</p>
+<br>
+<b>Supported Metadata:</b>
+<ul>
+  <li>Document Information</li>
+  <li>XMP Metadata</li>
+</ul>
+<b>Requirements:</b>
+<ul>
+  <li>Jython 2.7</li>
+  <li>python-chardet</li>
+  <li>python-pdfminer</li>
+  <li>xerces.jar (for XMP parse support)</li>
+</ul>
+
+<p>To be able to profit of the plugins capability you will need to start Burp with</p>
+<pre>java -classpath /path/to/xercesImpl.jar:/path/to/burp.jar burp.StartBurp</pre>
+
+<p>More information can be found on https://github.com/luh2/PDFMetadata</p>

@@ -5,11 +5,28 @@ The PDF Metadata Burp Extension provides an additional passive Scanner check for
 ## License
 This software is released under [GPL v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
+## Requirements
+This plugin requires Jython, [pdfminer](http://www.unixuser.org/~euske/python/pdfminer/) and [chardet](https://pypi.python.org/pypi/chardet). See heading [Python Environment](http://portswigger.net/burp/help/extender.html) in the official documentation of Burp. 
+
+Some default installations of Python might not install pdfminer or chardet. In that case you need to download them from the official sites and specify their location in Burp->Extender->Options->Python Environment "Folder for loading modules". 
+
+To be able to parse the XMP Metadata, the extension uses SAX which Jython doesn't include through the python modules, but through [xerces](https://xerces.apache.org/). You need to download the jar-file and specify it in the classpath when starting:
+
+    java -classpath /path/to/xercesImpl.jar:/path/to/burp.jar burp.StartBurp
+
+### Kali
+Usually Kali comes with a default installation of both chardet and pdfminer. If they are not installed use:
+
+    apt-get install python-pdfminer python-chardet
+
+Their location needs to be specified anyway though.
+
+Kali also comes with a packaged version of Xerces, which can be installed with
+
+    apt-get install libxerces2-java
+
+
 ## Various
-This plugin requires Jython and [pdfminer](http://www.unixuser.org/~euske/python/pdfminer/). See heading [Python Environment](http://portswigger.net/burp/help/extender.html) in the official documentation of Burp. 
-
-Some default installations of Python might not install pdfminer. In that case you need to download it from the [official site](http://www.unixuser.org/~euske/python/pdfminer/) and specify its location in Burp->Extender->Options->Python Environment "Folder for loading modules".
-
 The extension has been tested with Kali Linux, Burp version 1.6.18 and newer, Jython installation (not stand-alone) 2.7rc1.
 
 If you test under Windows or use a different Burp version, please share if you experience problems.
