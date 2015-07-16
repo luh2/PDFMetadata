@@ -26,7 +26,7 @@ Kali also comes with a packaged version of Xerces, which can be installed with
     apt-get install libxerces2-java
 
 ## Screenshot
-![screenshot of version 0.4](https://github.com/luh2/PDFMetadata/screenshots/screenshotv04.png)
+![screenshot of version 0.4](https://github.com/luh2/PDFMetadata/blob/master/screenshots/screenshotv04.png)
 
 ## Various
 The extension has been tested with Kali Linux, Burp version 1.6.18 and newer, Jython installation (not stand-alone) 2.7rc1.
