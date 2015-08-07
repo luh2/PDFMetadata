@@ -179,10 +179,9 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         request = self._requestResponse.getRequest()
         pdfFilename = request.tostring().split()[1]
 
-        # Not checking content-type. Content-Type stated in too many ways.
         # Check filename extension
-        # Not super clean either, but better than nothing.
-        if pdfFilename[-3:] == "pdf":
+        # Not super clean either, but catches most
+        if ".pdf" in pdfFilename:
             host = self._requestResponse.getHttpService().getHost()
             response = self._requestResponse.getResponse()
             responseInfo = self._helpers.analyzeResponse(response)
