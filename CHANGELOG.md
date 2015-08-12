@@ -1,7 +1,11 @@
 # Changelog
 
+<a name="0.5"></a>
+## 0.5
+- Add option to scan everything or only files ending with ".pdf"
+
 <a name="0.4"></a>
-## v0.4
+## 0.4
 - Bug fixing
 - Add XMP Metadata support
 - Improved Error Handling

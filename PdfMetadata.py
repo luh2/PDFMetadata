@@ -19,6 +19,7 @@ from burp import IScannerCheck
 from burp import IScanIssue
 from burp import IExtensionStateListener
 from burp import IExtensionHelpers
+from burp import ITab
 from javax import swing
 import StringIO
 from pdfminer.pdfparser import PDFParser, PDFSyntaxError, PSEOF
@@ -27,7 +28,7 @@ from pdfminer.pdftypes import resolve1
 import chardet
 import re
 
-
+VERSION = "0.5"
 # Start xmp.py
 """
     xmp.py
@@ -86,7 +87,7 @@ class XmpParser(object):
         ns = None
         tag = el.tag
         if tag[0] == "{":
-            ns, tag = tag[1:].split('}',1)
+            ns, tag = tag[1:].split('}', 1)
             if ns in NS_MAP:
                 ns = NS_MAP[ns]
         return ns, tag
@@ -110,42 +111,92 @@ class XmpParser(object):
         return value
 
 def xmp_to_dict(xmp):
-    """ Shorthand function for parsing an XMP string into a python dictionary. """
+    """Shorthand function for parsing an XMP string into a python dictionary."""
     return XmpParser(xmp).meta
-	
-	
-# End xmp.py 
+
+
+# End xmp.py
 
 
 
-class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
+class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener, ITab):
 
     def	registerExtenderCallbacks(self, callbacks):
-        
+
         print "Loading..."
 
         self._callbacks = callbacks
         self._callbacks.setExtensionName("PDF Metadata")
+        
+        self.rbFast = self.defineRadioButton("Scan Fast - Will miss PDF files that don't have their name in the request")
+        self.rbThorough = self.defineRadioButton("Scan Thoroughly - Will be slow, but won't miss PDF files", False)
+        self.fast = True
+        self.btnSave = swing.JButton("Save", actionPerformed=self.saveConfig)
+        self.btnGroup = swing.ButtonGroup()
+        self.btnGroup.add(self.rbFast)
+        self.btnGroup.add(self.rbThorough)
+
+        self.tab = swing.JPanel()
+        layout = swing.GroupLayout(self.tab)
+        self.tab.setLayout(layout)
+        layout.setAutoCreateGaps(True)
+        layout.setAutoCreateContainerGaps(True)
+        layout.setHorizontalGroup(
+            layout.createSequentialGroup()
+            .addGroup(layout.createParallelGroup()
+                      .addComponent(self.rbFast)
+                      .addComponent(self.rbThorough)
+                      .addComponent(self.btnSave)
+            )
+        )
+        layout.setVerticalGroup(
+            layout.createSequentialGroup()
+            .addComponent(self.rbFast)
+            .addComponent(self.rbThorough)
+            .addComponent(self.btnSave)
+            
+        )
+        self.restoreConfig()
         self._callbacks.registerScannerCheck(self)
         self._callbacks.registerExtensionStateListener(self)
         self._helpers = callbacks.getHelpers()
-
-        
+        self._callbacks.addSuiteTab(self)
+            
         self.initGui()
-      
+
         # Variable to keep a browsable structure of the issues find on each host
         # later used in the export function.
-        self.global_issues = {} 
+        self.global_issues = {}
 
-        
-        print "Loaded!"
-
+        print "Loaded PDF Metadata v"+VERSION+"!"
         return
 
+    def getTabCaption(self):
+        return("PDF Metadata")
+
+    def getUiComponent(self):
+        return self.tab
+    
+    def saveConfig(self, e=None):
+        if self.rbThorough.isSelected():
+            self.fast = False
+        else:
+            self.fast = True
+        self._callbacks.saveExtensionSetting("config", str(self.fast))
+
+    def restoreConfig(self, e=None):
+        if self._callbacks.loadExtensionSetting("config") == 'True' or self._callbacks.loadExtensionSetting("config") == None:
+            self.rbFast.setSelected(True)
+        else:
+            self.rbThorough.setSelected(True)
+            
+    def defineRadioButton(self, caption, selected=True):
+        radioButton = swing.JRadioButton(caption, selected)
+        return radioButton
+    
     def initGui(self):
         self.logsTA = swing.JTextArea()
-
-        self.jScrollPane2 = swing.JScrollPane()        
+        self.jScrollPane2 = swing.JScrollPane()
         self.logsTA.setColumns(20)
         self.logsTA.setRows(7)
         self.jScrollPane2.setViewportView(self.logsTA)
@@ -155,14 +206,16 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         print "Unloaded"
         return
 
-    # Burp Scanner invokes this method for each base request/response that is passively scanned
-    def doPassiveScan(self, baseRequestResponse):       
+    # Burp Scanner invokes this method for each base request/response that is
+    # passively scanned
+    def doPassiveScan(self, baseRequestResponse):
         self._requestResponse = baseRequestResponse
-        
+
         scan_issues = []
         scan_issues = self.findMetadata()
 
-        # doPassiveScan needs to return a list of scan issues, if any, and None otherwise
+        # doPassiveScan needs to return a list of scan issues, if any, and None
+        # otherwise
         if len(scan_issues) > 0:
             return scan_issues
         else:
@@ -179,9 +232,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
         request = self._requestResponse.getRequest()
         pdfFilename = request.tostring().split()[1]
 
-        # Check filename extension
-        # Not super clean either, but catches most
-        if ".pdf" in pdfFilename:
+        if (".pdf" in pdfFilename and self.fast) or not self.fast:
             host = self._requestResponse.getHttpService().getHost()
             response = self._requestResponse.getResponse()
             responseInfo = self._helpers.analyzeResponse(response)
@@ -201,8 +252,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
                     try:
                         xmp_m = xmp_to_dict(xmp_metadata)
                     except:
-                        print "WARNING: The plugin found metadata, but it seems like you haven't loaded Burp with the necessary library to parse the data."
-                        print "Please try starting Burp with java -classpath /path/to/xerces.jar:burp.jar burp.StartBurp"
+                        print """WARNING: The plugin found metadata, but it seems like you haven't loaded Burp with the necessary library to parse the data."""
+                        print """Please try starting Burp with java -classpath /path/to/xerces.jar:burp.jar burp.StartBurp"""
                 self.readMetadata(host, pdfFilename, doc.info[0], xmp_m)
             except PDFSyntaxError:
                 print "ERROR: Corrupt PDF file: "+host+pdfFilename
@@ -212,28 +263,34 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener):
                 print "ERROR: Unknown algorithm: "+host+pdfFilename
             except PDFTypeError:
                 print "ERROR: Unknown type: "+host+pdfFilename
-                
+
             del pdffile
         return (self.scan_issues)
 
     def readMetadata(self, host, pdfFilename, metadata, xmp):
         issuename = "Metadata in PDF File(s)"
         issuelevel = "Low"
-        issuedetail = "<p>PDF Metadata can contain compromising information about employees, software and more. This may provide information leading to specific and targeted technical and social engineering attacks. The PDF file includes the following potentially interesting metadata:</p><p><b>Document Information</b></p><ul>"
+        issuedetail = """<p>PDF Metadata can contain compromising information
+                      about employees, software and more. This may provide
+                      information leading to specific and targeted technical
+                      and social engineering attacks. The PDF file includes the
+                      following potentially interesting metadata:</p><p><b>
+                      Document Information</b></p><ul>"""
         log = "[+] Metadata found: " + host + "\n"
-        issueremediation = "Metadata containing sensitive information should be stripped from the file."
+        issueremediation = """Metadata containing sensitive information should
+                           be stripped from the file."""
         found = 0
         if metadata.keys():
             print ""
             print host+pdfFilename
             for key in metadata.keys():
-                if metadata[key] and not metadata[key].isspace():
+                if metadata[key] and not str(metadata[key]).isspace():
                     # hope they did not chose a funky encoding
                     try:
                         print key+":"+metadata[key]
                         current_metadata = metadata[key]
                     except UnicodeDecodeError:
-                    # trying to cope with a funky encoding             
+                    # trying to cope with a funky encoding
                         current_metadata = metadata[key].decode(chardet.detect(metadata[key])['encoding'])
                         print key+":",
                         print current_metadata.encode('utf-8')
@@ -310,7 +367,7 @@ class ScanIssue(IScanIssue):
         return None
 
     def getHttpService(self):
-        return self._httpservice 
+        return self._httpservice
 
     def getRemediationDetail(self):
         return None
@@ -332,6 +389,6 @@ class ScanIssue(IScanIssue):
 
     def getSeverity(self):
         return self._severity
-    
+
     def getConfidence(self):
         return "Certain"
