@@ -14,6 +14,11 @@ To be able to parse the XMP Metadata, the extension uses SAX which Jython doesn'
 
     java -classpath /path/to/xercesImpl.jar:/path/to/burp.jar burp.StartBurp
 
+## Config Options
+You can chose between fast and thorough scanning. Thorough is very strongly ressource consuming, so I recommend you only use it when you've noticed that the web app you are testing is generating PDF files that do not contain ".pdf" in the URL. I also recommend you do it once you are done testing for the day. By default the option is set to fast. In this mode it will only analyze the response if ".pdf" was part of the requested URL.
+
+![Config Option](https://github.com/luh2/PDFMetadata/blob/master/screenshots/pdf_metadaten_screenshot_config.png)
+
 ### Kali
 Usually Kali comes with a default installation of both chardet and pdfminer. If they are not installed use:
 
