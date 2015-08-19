@@ -263,6 +263,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IExtensionStateListener, ITab):
                 print "ERROR: Unknown algorithm: "+host+pdfFilename
             except PDFTypeError:
                 print "ERROR: Unknown type: "+host+pdfFilename
+            except IndexError:
+                print "No Metadata Found in "+host+pdfFilename
 
             del pdffile
         return (self.scan_issues)
