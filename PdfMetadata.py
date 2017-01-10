@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 # Burp PDF Metadata Extension
-# Copyright (c) 2015, Veit Hailperin (scip AG)
+# Copyright (c) 2015, 2016 Veit Hailperin (scip AG), 2017 Veit Hailperin
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
